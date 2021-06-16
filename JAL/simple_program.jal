@@ -1,0 +1,80 @@
+    lrv     rmi, #10
+    lrv     rmo, #30
+    lrv     ri, #0
+    lrv     rsi, #2
+    lrv     rjls, loop_prog1
+
+loop_prog1:
+    lrm     rlsb
+    inc     rmi
+    lrm     rmsb
+
+    hgp
+    hel
+    str     rstr
+    inc     rmo
+    hem
+    str     rstr
+
+    inc     rmo
+    inc     rmi
+    inc     ri
+
+    bns
+
+    lrv     rmi, #30
+    lrv     rmo, #60
+    lrv     ri, #0
+    lrv     rsi, #4
+    lrv     rjls, loop_prog2
+
+loop_prog2:
+    lrm     rlsb
+    inc     rmi
+    lrm     rmsb
+
+    hep
+    hcl
+    str     rstr
+    inc     rmo
+    hcm
+    str     rstr
+
+    inc     rmo
+    inc     rmi
+    inc     ri
+
+    bns
+
+
+    @ Final thing
+
+    lrv     rlsb, #219
+    lrv     rmsb, #109
+    lrv     rmo, #90
+    lrv     rptn, #216
+    lrv     rjni, dont_inc
+    lrv     robc, #0
+    lrv     rubc, #0
+    lrv     rtbc, #0
+
+    pob
+    bcz
+    apc     robc    @ Should be 2
+    inc     rubc    @ Should be 1
+
+dont_inc:
+    ptb
+    apc     rtbc    @ Should be 1
+
+    str     robc
+    inc     rmo
+    str     rubc
+    inc     rmo
+    str     rtbc
+
+end
+
+    lrv     rstr, #10
+    lrv     rmo, #190
+    str     rstr

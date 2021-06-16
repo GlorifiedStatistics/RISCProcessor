@@ -1,0 +1,168 @@
+@
+@ Value definitions
+@
+
+$MEM_IN_P1      = #0
+$MEM_OUT_P1     = #30
+$NUM_LOOPS_P1   = #15
+
+$MEM_IN_P2      = #64
+$MEM_OUT_P2     = #94
+$NUM_LOOPS_P2   = #15
+
+$MEM_IN_P3      = #128
+$MEM_OUT_P3     = #192
+$NUM_LOOPS_P3   = #31
+
+$MEM_IN_PTN     = #160
+
+@
+@ Begin of actual programs
+@
+
+@ Program 1 @
+
+@ Starting variables
+    lrv     ri, #0                  @ Load value '0' into r0 to keep track of which hamming code we are on
+    lrv     rmi, $MEM_IN_P1         @ Load starting place of this program's input
+    lrv     rmo, $MEM_OUT_P1        @ Load starting place of this program's output
+    lrv     rsi, $NUM_LOOPS_P1      @ Load number of loops to take place
+
+    lrv     rjls, loop_prog1        @ Load jump point for branch instruction
+
+loop_prog1:
+    @ Get values from memory
+    lrm     rlsb @,rmi              @ Load LSB
+    inc     rmi                     @ Increment for MSB location
+    lrm     rmsb @,rmi              @ Load MSB
+
+    @ Get parity bits
+    hgp     @rpct,rmsb,rlsb         @ Find parity bits
+    hel     @rstr,rlsb,rpct         @ Get LSB output
+    str     rstr @,rmo              @ Store LSB
+    inc     rmo                     @ Increment memory address
+    hem     @rstr,rmsb,rlsb,rpct    @ Get MSB output
+    str     rstr @,rmo              @ Store MSB
+
+    @ Increment r0-r2, and check if we need to loop again
+    inc     ri
+    inc     rmi
+    inc     rmo
+    bns     @ri,rsi,rjls            @ Branch back to loop (in rjmp register) if needed
+
+
+end
+
+@ Program 2 @
+
+@ Starting variables
+    lrv     ri, #0                  @ Load value '0' into r0 to keep track of which hamming code we are on
+    lrv     rmi, $MEM_IN_P2         @ Load starting place of this program's input
+    lrv     rmo, $MEM_OUT_P2        @ Load starting place of this program's output
+    lrv     rsi, $NUM_LOOPS_P2      @ Load number of loops to take place
+
+    lrv     rjls, loop_prog2        @ Load jump point for branch instruction
+
+loop_prog2:
+    @ Get values from memory
+    lrm     rlsb @,rmi              @ Load LSB
+    inc     rmi                     @ Increment for MSB location
+    lrm     rmsb @,rmi              @ Load MSB
+
+    @ Get parity bits
+    hep     @rpct,rmsb,rlsb         @ Get error parity bits
+
+    @ Fix if there is a discrepancy
+    hcl     @rstr,rpct,rmsb,rlsb    @ Build output LSB
+    str     rstr @,rmo              @ Store LSB
+    inc     rmo                     @ Increment to get
+    hcm     @rstr,rpct,rmsb,rlsb    @ Build output MSB
+    str     rstr @,rmo              @ Store MSB
+
+    @ Increment r0-r2, and check if we need to loop again
+    inc     ri
+    inc     rmi
+    inc     rmo
+    bns     @ri,rsi,rjls             @ Branch back to loop if needed
+
+
+end
+
+@ Program 3 @
+
+ @ Starting variables
+    @ The robc, rubc, and rtbc all start at 0 initially
+    lrv     ri, #0                  @ Load value '0' into r0 to keep track of which byte we are on
+
+    lrv     rmi, $MEM_IN_PTN        @ Load address of pattern bits
+    lrm     rptn @,rmi              @ Load pattern bits
+
+    lrv     rmi, $MEM_IN_P3         @ Load starting place of this program's input
+    lrv     rmo, $MEM_OUT_P3        @ Load starting place of this program's output
+    lrv     rsi, $NUM_LOOPS_P3      @ Load number of loops to take place
+
+    lrv     rjls, loop_prog3        @ Load jump point for branch instruction
+    lrv     rjni, dont_inc          @ Load jump point for not incrementing
+
+    @ Clear out p3 registers to 0
+    lrv     robc, #0
+    lrv     rubc, #0
+    lrv     rtbc, #0
+
+loop_prog3:
+    @ Get values from memory
+    lrm     rlsb @,rmi              @ Load LSB
+    inc     rmi                     @ Increment for MSB location
+    lrm     rmsb @,rmi              @ Load MSB
+
+    @ Get count of one-byte pattern match
+    pob     @rpct,rlsb              @ Get count of pattern in intra-byte
+
+    @ Branch if zero past the increment
+    bcz     @rpct,rjni              @ Branch ahead if count is 0
+    apc     robc @,rpct             @ Add count of one-byte to robc
+    apc     rtbc @,rpct             @ Add count of one-byte to rtbc
+    inc     rubc                    @ Increment rubc
+
+dont_inc:
+    @ Get count of two-byte pattern match
+    ptb     @rpct,rlsb,rmsb         @ Get count of pattern in inter-byte
+    apc     rtbc @,rpct             @ Add this count to rtbc
+
+    @ Increment things (current index)
+    inc     ri
+
+    bns     @ri,rsi,rjls            @ Branch back to loop_prog3 if we are not stopping
+
+
+    @ Otherwise, time for final portion of program 3
+    lrm     rlsb                    @ Load the last byte
+
+    @ Make the new skip-increment point
+    lrv     rjni, dont_inc2         @ Load jump point for not incrementing
+
+    @ Get count of one-byte pattern match
+    pob     @rpct,rlsb              @ Get count of pattern in intra-byte
+
+    @ Branch if zero past the increment
+    bcz     @rpct,rjpt              @ Branch ahead if count is 0
+    apc     robc @,rpct             @ Add count of one-byte to robc
+    apc     rtbc @,rpct             @ Add count of one-byte to rtbc
+    inc     rubc                    @ Increment rubc
+
+dont_inc2:
+
+    @ Time to store things into memory
+    str     robc @,rmo              @ Store robc in 192
+    inc     rmo                     @ Increment to get to place to store rubc
+
+    str     rubc @,rmo              @ Store rubc in 193
+    inc     rmo                     @ Increment to get to place to store rtbc
+
+    str     rtbc @,rmo              @ Store rtbc in 194
+
+
+@  YAY! END OF PROGRAM EXECUTION!
+
+
+    end
